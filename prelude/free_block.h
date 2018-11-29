@@ -9,6 +9,9 @@
 extern union _superblockbuf {
   struct {
     int free_block_head;
+    int free_block_size;
+
+    int avail_inum;
   };
   char buf[SUPERBLOCK_SIZE];
 } SuperBlockBuf;

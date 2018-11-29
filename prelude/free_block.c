@@ -27,11 +27,16 @@ static void __superblock_read() {
 
 void free_block_init() {
   memset(&BlockBuf, 0, sizeof(BlockBuf));
+  memset(&SuperBlockBuf, 0, sizeof(SuperBlockBuf));
 
   disk_open("/tmp/tempfsfile");
   for (int i=0; i<MAX_BLOCK_NUM; i++) {
     BlockBuf.free_block_next = i + 1;
     __freeblock_write(i);
   }
+  SuperBlockBuf.free_block_head = 1;
+  SuperBlockBuf.free_block_size = MAX_BLOCK_NUM - 2;
+  __superblock_write();
+
   disk_close();
 }

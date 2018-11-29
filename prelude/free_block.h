@@ -1,10 +1,13 @@
+#ifndef FREE_BLOCK_H
+#define FREE_BLOCK_H
+
 #include <string.h>
 #include "block.h"
 
 #define INODE_SIZE 128
 #define SUPERBLOCK_SIZE 256
 #define MAX_INODE_NUM 2048
-#define MAX_BLOCK_NUM 32768
+#define MAX_BLOCK_NUM 32 //32768
 
 extern union _superblockbuf {
   struct {
@@ -24,3 +27,6 @@ extern union _blockbuf {
 } BlockBuf;
 
 void free_block_init();
+int free_block_pop();
+
+#endif /* ifndef FREE_BLOCK_H */

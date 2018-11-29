@@ -21,7 +21,7 @@ void disk_open(const char* diskfile_path)
     if(diskfile >= 0){
         return;
     }
-    
+
     diskfile = open(diskfile_path, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
     if (diskfile < 0) {
         perror("disk_open failed");
@@ -38,7 +38,7 @@ void disk_close()
 
 /** Read a block from an open file
  *
- * Read should return (1) exactly @BLOCK_SIZE when succeeded, or (2) 0 when the requested block has never been touched before, or (3) a negtive value when failed. 
+ * Read should return (1) exactly @BLOCK_SIZE when succeeded, or (2) 0 when the requested block has never been touched before, or (3) a negtive value when failed.
  * In cases of error or return value equals to 0, the content of the @buf is set to 0.
  */
 int block_read(const int block_num, void *buf)
@@ -56,7 +56,7 @@ int block_read(const int block_num, void *buf)
 
 /** Write a block to an open file
  *
- * Write should return exactly @BLOCK_SIZE except on error. 
+ * Write should return exactly @BLOCK_SIZE except on error.
  */
 int block_write(const int block_num, const void *buf)
 {
@@ -64,7 +64,7 @@ int block_write(const int block_num, const void *buf)
     retstat = pwrite(diskfile, buf, BLOCK_SIZE, block_num*BLOCK_SIZE);
     if (retstat < 0)
         perror("block_write failed");
-    
+
     return retstat;
 }
 

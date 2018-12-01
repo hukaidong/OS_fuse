@@ -82,12 +82,12 @@ MU_TEST(test_fb_push) {
 MU_TEST(test_inode_struct) {
   mu_assert_int_eq(2, sizeof(ushort));
   mu_assert_int_eq(4, sizeof(ulong));
-  mu_assert_int_eq(128, sizeof(struct inode_ex1));
-  mu_assert_int_eq(128, sizeof(struct finode));
-  mu_assert_int_eq(128, sizeof(struct finode_pure));
-  mu_assert_int_eq(128, sizeof(struct dinode));
-  mu_assert_int_eq(128, sizeof(struct dinode_pure));
-  mu_assert_int_eq(128, sizeof(union inode_t));
+  mu_assert_int_eq(INODE_SIZE, sizeof(struct inode_ex1));
+  mu_assert_int_eq(INODE_SIZE, sizeof(struct finode));
+  mu_assert_int_eq(INODE_SIZE, sizeof(struct finode_pure));
+  mu_assert_int_eq(INODE_SIZE, sizeof(struct dinode));
+  mu_assert_int_eq(INODE_SIZE, sizeof(struct dinode_pure));
+  mu_assert_int_eq(INODE_SIZE, sizeof(union inode_t));
 }
 
 MU_TEST_SUITE(test_suite) {

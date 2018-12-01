@@ -3,6 +3,7 @@
 #include "block.h"
 #include "free_block.h"
 #include "minunit.h"
+#include "inode.h"
 
 
 void test_setup(void) { }
@@ -78,12 +79,24 @@ MU_TEST(test_fb_push) {
   mu_assert_int_eq(20, free_block_pop());
 }
 
+MU_TEST(test_inode_struct) {
+  mu_assert_int_eq(2, sizeof(ushort));
+  mu_assert_int_eq(4, sizeof(ulong));
+  mu_assert_int_eq(128, sizeof(struct inode_ex1));
+  mu_assert_int_eq(128, sizeof(struct finode));
+  mu_assert_int_eq(128, sizeof(struct finode_pure));
+  mu_assert_int_eq(128, sizeof(struct dinode));
+  mu_assert_int_eq(128, sizeof(struct dinode_pure));
+  mu_assert_int_eq(128, sizeof(union inode_t));
+}
+
 MU_TEST_SUITE(test_suite) {
 	MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
   MU_RUN_TEST(test_fb_init);
 	MU_RUN_TEST(test_fb_pop);
 	MU_RUN_TEST(test_fb_pop_till_empty);
 	MU_RUN_TEST(test_fb_push);
+	MU_RUN_TEST(test_inode_struct);
 }
 
 int main(int argc, char *argv[]) {

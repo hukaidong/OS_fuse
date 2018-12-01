@@ -7,7 +7,12 @@
 #define INODE_SIZE 128
 #define SUPERBLOCK_SIZE 256
 #define MAX_INODE_NUM 2048
-#define MAX_BLOCK_NUM 32 //32768
+#ifndef TESTING_CONFIG
+#define MAX_BLOCK_NUM 32768
+#else
+#define MAX_BLOCK_NUM 32
+#endif
+
 
 extern union _superblockbuf {
   struct {
@@ -28,5 +33,7 @@ extern union _blockbuf {
 
 void free_block_init();
 int free_block_pop();
+int free_block_push(int block_num);
+int free_block_size();
 
 #endif /* ifndef FREE_BLOCK_H */

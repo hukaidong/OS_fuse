@@ -291,7 +291,9 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     if (strcmp(path, "/") != 0) {
       return -ENOENT;
     } else {
-      const struct di_ent *d = dnode_listing(2, &size);
+      struct di_ent dot;
+      const struct di_ent *d = dnode_listing(2, &size, &dot);
+      filler(buf, dot.filename, NULL, 0);
       for (int i=0; i<size; i++) {
         filler(buf, d[i].filename, NULL, 0);
       }

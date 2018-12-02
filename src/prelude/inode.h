@@ -16,7 +16,7 @@ typedef uint64_t ullong;
 union  metadata    { struct { ushort ino, size, nlink; uchar isdir;}; char _[16]; };
 struct di_ent      { char filename[14]; ushort inum; };
 
-struct finode      { union metadata metadata; blknum_t blknum[24]; ushort fpnum[4], lv2_fpnum[4]; };
+struct finode      { union metadata metadata; blknum_t blknum[24]; ushort fpnum[4], ex_fpnum[4]; };
 struct inode_ex1   { ushort exnum[64]; };
 struct finode_pure { blknum_t blknum[32]; };
 struct dinode      { union metadata metadata; struct di_ent dinum[6]; ushort dpnum[4], ex_dpnum[4]; };
@@ -41,7 +41,12 @@ void inode_get_attr_upc(ushort, int* mode, int* nlink, int* size);
 void fnode_init(ushort inum);
 void dnode_init(ushort inum, ushort parent);
 
-const struct di_ent *dnode_listing(ushort inum, int* size);
-const blknum_t *fnode_listing(ushort inum, int* size);
+blknum_t *fnode_listing(ushort inum, int* size);
+struct di_ent *dnode_listing(ushort inum, int* size, struct di_ent* dot);
+void fnode_listing_set(ushort inum, int newsize);
+void dnode_listing_set(ushort inum, int newsize);
+
+ushort free_inode_pop();
+void free_inode_push(ushort inum);
 
 #endif /* ifndef INODE_STRCT_H */

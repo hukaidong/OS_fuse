@@ -1,4 +1,5 @@
 #include <string.h>
+#include <assert.h>
 #include "block.h"
 #include "free_block.h"
 
@@ -57,6 +58,7 @@ int free_block_pop() {
 }
 
 int free_block_push(int block_num) {
+  assert(block_num > 512 && block_num < MAX_BLOCK_NUM);
   superblock_read();
   BlockBuf.free_block_next = SuperBlockBuf.free_block_head;
   freeblock_write(block_num);

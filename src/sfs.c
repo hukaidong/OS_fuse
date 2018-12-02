@@ -136,7 +136,23 @@ int sfs_unlink(const char *path)
 {
     int retstat = 0;
     log_msg("sfs_unlink(path=\"%s\")\n", path);
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
 
+    int inum, p_inum, size;
+    inum = path_to_inum(path, &p_inum);
+    if (inum < 0) return -ENOENT;
+
+    fnode_listing_set(inum, 0);
+    free_inode_push(inum);
+
+    struct di_ent *d = dnode_listing(p_inum, &size, NULL);
+    struct di_ent *d_end = d + size;
+    for ( ; d<d_end; d++) {
+      if (!strcmp(d->filename, filename))
+        memcpy(d, d_end-1, sizeof(*d));
+    }
+    dnode_listing_set(p_inum, size-1);
 
     return retstat;
 }

@@ -1,10 +1,10 @@
 #include <string.h>
+#include <stdlib.h>
 
 #include "block.h"
 #include "free_block.h"
 #include "minunit.h"
 #include "inode.h"
-
 
 void test_setup(void) { }
 void test_teardown(void) { }
@@ -80,8 +80,6 @@ MU_TEST(test_fb_push) {
 }
 
 MU_TEST(test_inode_struct) {
-  mu_assert_int_eq(2, sizeof(ushort));
-  mu_assert_int_eq(4, sizeof(ulong));
   mu_assert_int_eq(INODE_SIZE, sizeof(struct inode_ex1));
   mu_assert_int_eq(INODE_SIZE, sizeof(struct finode));
   mu_assert_int_eq(INODE_SIZE, sizeof(struct finode_pure));
@@ -90,8 +88,18 @@ MU_TEST(test_inode_struct) {
   mu_assert_int_eq(INODE_SIZE, sizeof(union inode_t));
 }
 
-MU_TEST(tset_inode_init) {
+MU_TEST(test_inode_init) {
+  free_block_init();
   inode_init();
+}
+
+MU_TEST(test_inode_stat) {
+  free_block_init();
+  inode_init();
+  int st_mode, st_nlink, st_size;
+  inode_get_attr_upc(2, &st_mode, &st_nlink, &st_size);
+  mu_assert_int_eq(2, st_nlink);
+  mu_assert_int_eq(0, st_size);
 }
 
 MU_TEST_SUITE(test_suite) {
@@ -101,6 +109,8 @@ MU_TEST_SUITE(test_suite) {
 	MU_RUN_TEST(test_fb_pop_till_empty);
 	MU_RUN_TEST(test_fb_push);
 	MU_RUN_TEST(test_inode_struct);
+	MU_RUN_TEST(test_inode_init);
+	MU_RUN_TEST(test_inode_stat);
 }
 
 int main(int argc, char *argv[]) {

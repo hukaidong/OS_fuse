@@ -37,7 +37,8 @@ void inode_init() {
 
 void inode_get_attr(ushort inum, struct stat *statbuf) {
   inode_load(inum, &_inodebuf);
-  if (_inodebuf.metadata.isdir) {
+  if (1) {
+  /* if (_inodebuf.metadata.isdir) { */
     statbuf->st_mode = S_IFDIR | 0755;
     statbuf->st_nlink = _inodebuf.metadata.nlink;
     statbuf->st_size = _inodebuf.metadata.size;
@@ -49,21 +50,34 @@ void inode_get_attr(ushort inum, struct stat *statbuf) {
 
 }
 
+void inode_get_attr_upc(ushort inum, int *st_mode, int *st_nlink, int *st_size) {
+  inode_load(inum, &_inodebuf);
+  if (_inodebuf.metadata.isdir) {
+    *st_mode = S_IFDIR | 0755;
+    *st_nlink = _inodebuf.metadata.nlink;
+    *st_size = _inodebuf.metadata.size;
+  } else {
+    *st_mode = S_IFREG | 0755;
+    *st_nlink = _inodebuf.metadata.nlink;
+    *st_size = _inodebuf.metadata.size;
+  }
+
+}
 void dnode_init(ushort inum, ushort pnum) {
   struct di_ent dotdot = { "..", pnum };
 
   memset(&_inodebuf, 0, sizeof(union inode_t));
-  _inodebuf.idir.metadata.isdir = 1;
-  _inodebuf.idir.metadata.nlink = 2;
-  _inodebuf.idir.metadata.ino = inum;
-  _inodebuf.idir.metadata.size = 0;
+  _inodebuf.metadata.isdir = 1;
+  _inodebuf.metadata.nlink = 2;
+  _inodebuf.metadata.ino = inum;
+  _inodebuf.metadata.size = 0;
   _inodebuf.idir.dinum[0] = dotdot;
 }
 
 void fnode_init(ushort inum) {
   memset(&_inodebuf, 0, sizeof(union inode_t));
-  _inodebuf.ifile.metadata.isdir = 0;
-  _inodebuf.ifile.metadata.nlink = 1;
-  _inodebuf.ifile.metadata.ino = inum;
-  _inodebuf.ifile.metadata.size = 0;
+  _inodebuf.metadata.isdir = 0;
+  _inodebuf.metadata.nlink = 1;
+  _inodebuf.metadata.ino = inum;
+  _inodebuf.metadata.size = 0;
 }

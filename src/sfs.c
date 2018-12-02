@@ -9,6 +9,7 @@
 
 #include "params.h"
 #include "block.h"
+#include "prelude/packer.cpacker"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -50,10 +51,10 @@ void *sfs_init(struct fuse_conn_info *conn)
 {
     fprintf(stderr, "in bb-init\n");
     log_msg("\nsfs_init()\n");
-
     log_conn(conn);
-
     log_fuse_context(fuse_get_context());
+    free_block_init();
+    inode_init();
 
     return SFS_DATA;
 }
@@ -83,11 +84,11 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
           path, statbuf);
+    log_fuse_context(fuse_get_context());
 
     memset(statbuf, 0, sizeof(struct stat));
     if (strcmp(path, "/") == 0) {
-      statbuf->st_mode = S_IFDIR | 0755;
-      statbuf->st_nlink = 2;
+      inode_get_attr(2, statbuf);
     } else
       retstat = -ENOENT;
 

@@ -4,9 +4,8 @@
 #include <string.h>
 #include "block.h"
 
-#define INODE_SIZE 128
-#define SUPERBLOCK_SIZE 256
-#define MAX_INODE_NUM 2048
+#define SUPERBLOCK_SIZE 128
+
 #ifndef TESTING_CONFIG
 #define MAX_BLOCK_NUM 32768
 #else

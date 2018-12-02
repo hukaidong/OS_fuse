@@ -90,6 +90,10 @@ MU_TEST(test_inode_struct) {
   mu_assert_int_eq(INODE_SIZE, sizeof(union inode_t));
 }
 
+MU_TEST(tset_inode_init) {
+  inode_init();
+}
+
 MU_TEST_SUITE(test_suite) {
 	MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
   MU_RUN_TEST(test_fb_init);

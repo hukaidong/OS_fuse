@@ -36,10 +36,12 @@ void inode_init();
 void inode_load(ushort inum, union inode_t *inode);
 void inode_dump(ushort inum, const union inode_t *inode);
 void inode_get_attr(ushort inum, struct stat *statbuf);
-void inode_get_attr_upc(ushort, int*, int*, int*);
+void inode_get_attr_upc(ushort, int* mode, int* nlink, int* size);
 
 void fnode_init(ushort inum);
 void dnode_init(ushort inum, ushort parent);
 
+const struct di_ent *dnode_listing(ushort inum, int* size);
+const blknum_t *fnode_listing(ushort inum, int* size);
 
 #endif /* ifndef INODE_STRCT_H */

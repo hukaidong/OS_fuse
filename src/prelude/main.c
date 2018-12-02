@@ -91,6 +91,11 @@ MU_TEST(test_inode_struct) {
 MU_TEST(test_inode_init) {
   free_block_init();
   inode_init();
+  union inode_t node;
+  inode_load(2, &node);
+  mu_assert_int_eq(0, node.metadata.size);
+  mu_assert_int_eq(1, node.metadata.isdir);
+  mu_assert_int_eq(2, node.metadata.nlink);
 }
 
 MU_TEST(test_inode_stat) {

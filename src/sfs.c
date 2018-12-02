@@ -53,6 +53,8 @@ void *sfs_init(struct fuse_conn_info *conn)
     log_msg("\nsfs_init()\n");
     log_conn(conn);
     log_fuse_context(fuse_get_context());
+
+    disk_open(SFS_DATA->diskfile);
     free_block_init();
     inode_init();
 
@@ -69,6 +71,7 @@ void *sfs_init(struct fuse_conn_info *conn)
 void sfs_destroy(void *userdata)
 {
     log_msg("\nsfs_destroy(userdata=0x%08x)\n", userdata);
+    disk_close();
 }
 
 /** Get file attributes.
@@ -89,6 +92,8 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     memset(statbuf, 0, sizeof(struct stat));
     if (strcmp(path, "/") == 0) {
       inode_get_attr(2, statbuf);
+      statbuf->st_uid = fuse_get_context()->uid;
+      statbuf->st_gid = fuse_get_context()->gid;
     } else
       retstat = -ENOENT;
 
@@ -278,18 +283,19 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
 int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
                struct fuse_file_info *fi)
 {
-    int retstat = 0;
+    int retstat = 0, size = 0;
 
-    // TEST CODES
     (void) offset;
     (void) fi;
 
-    if (strcmp(path, "/") != 0)
+    if (strcmp(path, "/") != 0) {
       return -ENOENT;
-
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-    // TEST CODES
+    } else {
+      const struct di_ent *d = dnode_listing(2, &size);
+      for (int i=0; i<size; i++) {
+        filler(buf, d[i].filename, NULL, 0);
+      }
+    }
 
     return retstat;
 }

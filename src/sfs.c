@@ -97,7 +97,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     } else
       retstat = -ENOENT;
 
-
     return retstat;
 }
 
@@ -115,11 +114,20 @@ int sfs_getattr(const char *path, struct stat *statbuf)
  */
 int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+    log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n", path, mode, fi);
+
     int retstat = 0;
-    log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n",
-            path, mode, fi);
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
 
-
+    int inum, p_inum, size;
+    inum = path_to_inum(path, &p_inum);
+    if (inum > 0) return -EEXIST;
+    inum = free_inode_pop();
+    fnode_init(inum);
+    struct di_ent *d = dnode_listing(p_inum, &size, NULL);
+    d[size] = di_ent_c(filename, inum);
+    dnode_listing_set(p_inum, size+1);
     return retstat;
 }
 

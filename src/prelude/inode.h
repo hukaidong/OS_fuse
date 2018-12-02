@@ -15,6 +15,7 @@ typedef uint64_t ullong;
 
 union  metadata    { struct { ushort ino, size, nlink; uchar isdir;}; char _[16]; };
 struct di_ent      { char filename[14]; ushort inum; };
+struct di_ent      di_ent_c(const char *filename, ushort inum);
 
 struct finode      { union metadata metadata; blknum_t blknum[24]; ushort fpnum[4], ex_fpnum[4]; };
 struct inode_ex1   { ushort exnum[64]; };

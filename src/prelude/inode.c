@@ -91,7 +91,7 @@ void fnode_init(ushort inum) {
 struct di_ent d[2086];
 blknum_t f[8344];
 
-static struct di_ent di_ent_c(const char *filename, ushort inum) {
+struct di_ent di_ent_c(const char *filename, ushort inum) {
   struct di_ent di_ent;
   memcpy(&di_ent, filename, 14);
   di_ent.inum = inum;

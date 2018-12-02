@@ -1,10 +1,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "path.h"
 #include "block.h"
+#include "inode.h"
 #include "free_block.h"
 #include "minunit.h"
-#include "inode.h"
 
 void test_setup(void) { }
 void test_teardown(void) { }
@@ -473,6 +474,22 @@ MU_TEST(test_inode_stat) {
   mu_assert_int_eq(1, st_size);
 }
 
+MU_TEST(test_path_2_inum) {
+  free_block_init();
+  inode_init();
+  mu_assert_int_eq(-1, _path_to_inum_elem("a", 2));
+  int parent_inum, size;
+  mu_assert_int_eq(2, path_to_inum("/", NULL));
+  mu_assert_int_eq(-1, path_to_inum("/a", &parent_inum));
+  mu_assert_int_eq(2, parent_inum);
+  struct di_ent *d = dnode_listing(2, &size, NULL);
+  d[1] = di_ent_c("a", 3);
+  d[2] = di_ent_c("b", 4);
+  dnode_listing_set(2, 3);
+  mu_assert_int_eq(3, _path_to_inum_elem("a", 2));
+  mu_assert_int_eq(4, path_to_inum("/b", &parent_inum));
+}
+
 MU_TEST_SUITE(test_suite) {
 	MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
   MU_RUN_TEST(test_fb_init);
@@ -491,6 +508,7 @@ MU_TEST_SUITE(test_suite) {
   MU_RUN_TEST(test_dnode_list_lv1exp);
   MU_RUN_TEST(test_dnode_list_lv2exp);
   MU_RUN_TEST(test_dnode_list_scale_and_srink);
+  MU_RUN_TEST(test_path_2_inum);
 }
 
 int main(int argc, char *argv[]) {

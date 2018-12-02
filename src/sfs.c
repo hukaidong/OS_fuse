@@ -82,7 +82,7 @@ void sfs_destroy(void *userdata)
  */
 int sfs_getattr(const char *path, struct stat *statbuf)
 {
-    int retstat = 0;
+    int retstat = 0, inum;
     char fpath[PATH_MAX];
 
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
@@ -90,12 +90,12 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     log_fuse_context(fuse_get_context());
 
     memset(statbuf, 0, sizeof(struct stat));
-    if (strcmp(path, "/") == 0) {
-      inode_get_attr(2, statbuf);
-      statbuf->st_uid = fuse_get_context()->uid;
-      statbuf->st_gid = fuse_get_context()->gid;
-    } else
-      retstat = -ENOENT;
+
+    inum = path_to_inum(path, NULL);
+    if (inum < 0) return -ENOENT;
+    inode_get_attr(inum, statbuf);
+    statbuf->st_uid = fuse_get_context()->uid;
+    statbuf->st_gid = fuse_get_context()->gid;
 
     return retstat;
 }

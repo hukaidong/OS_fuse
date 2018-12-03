@@ -92,6 +92,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     memset(statbuf, 0, sizeof(struct stat));
     inum = path_to_inum(path, NULL);
     if (inum < 0) return -ENOENT;
+
     inode_get_attr(inum, statbuf);
     statbuf->st_uid = fuse_get_context()->uid;
     statbuf->st_gid = fuse_get_context()->gid;
@@ -115,33 +116,34 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n", path, mode, fi);
 
-    int retstat;
+    int retstat, inum, p_inum, size;
     const char *filename = strrchr(path, '/');
     filename = filename ? filename + 1 : path;
-
-    int inum, p_inum, size;
     inum = path_to_inum(path, &p_inum);
     if (inum > 0) return -EEXIST;
+
     inum = free_inode_pop();
     fnode_init(inum, p_inum);
     dnode_append(p_inum, di_ent_c(filename, inum));
+
     retstat = errno_pop();
     if (retstat < 0) {     // reverting
       dnode_remove(p_inum, filename);
       free_inode_push(inum);
     }
+
     return retstat;
 }
 
 /** Remove a file */
 int sfs_unlink(const char *path)
 {
-    int retstat = 0;
+    int retstat = 0, inum, p_inum, size;
     log_msg("sfs_unlink(path=\"%s\")\n", path);
+
     const char *filename = strrchr(path, '/');
     filename = filename ? filename + 1 : path;
 
-    int inum, p_inum, size;
     inum = path_to_inum(path, &p_inum);
     if (inum < 0) return -ENOENT;
 
@@ -165,16 +167,15 @@ int sfs_unlink(const char *path)
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
     // JUST MAKE EXISTANCE CHECK
-    int retstat = 0;
-    log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
-            path, fi);
+    log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n", path, fi);
     const char *filename = strrchr(path, '/');
     filename = filename ? filename + 1 : path;
 
     int inum, p_inum, size;
     inum = path_to_inum(path, &p_inum);
-    if (inum > 0) return -EEXIST;
-    return retstat;
+    if (inum < 0) return -ENOENT;
+
+    return 0;
 }
 
 /** Release an open file
@@ -193,10 +194,8 @@ int sfs_open(const char *path, struct fuse_file_info *fi)
  */
 int sfs_release(const char *path, struct fuse_file_info *fi)
 {
-    int retstat = 0;
-    log_msg("\nsfs_release(path=\"%s\", fi=0x%08x)\n",
-          path, fi);
-    return retstat;
+    log_msg("\nsfs_release(path=\"%s\", fi=0x%08x)\n", path, fi);
+    return 0;
 }
 
 /** Read data from an open file
@@ -216,28 +215,10 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
     log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
 
-    const char *filename = strrchr(path, '/');
-    filename = filename ? filename + 1 : path;
-
-    int inum, fsize, b_size,
-        b_start = offset / BLOCK_SIZE,
-        b_end = (offset+size) / BLOCK_SIZE + 1;
-
-    inum = path_to_inum(path, NULL);
+    int inum = path_to_inum(path, NULL);
     if (inum < 0) return -ENOENT;
-    blknum_t *f = fnode_listing(inum, &b_size);
-    inode_get_attr_upc(inum, NULL, NULL, &fsize);
 
-    char *blkbuf = calloc((b_end-b_start), BLOCK_SIZE), *ptr=blkbuf;
-    for (int i=b_start; i<b_size && i<b_end; i++) {
-      block_read(f[i], ptr);
-      /* log_msg("block_read %d, \"%s\"", f[i], ptr); */
-      ptr += BLOCK_SIZE;
-    }
-    ptr = blkbuf;
-    retstat = (fsize-offset)<size ? fsize-offset : size;
-    retstat = retstat > 0 ? retstat : 0;
-    memcpy(buf, ptr+offset % BLOCK_SIZE, retstat);
+    retstat = fstream_read(inum, buf, size, offset);
     /* log_msg("readed: (fsize=%d, bsize=%d, retstat=%d, f[0]=%d, blkbuf=\"%s\", buf=\"%s\")\n", */
         /* fsize, b_size, retstat, f[0], blkbuf, buf); */
 
@@ -256,44 +237,14 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
              struct fuse_file_info *fi)
 {
     int retstat = 0;
+    int inum = path_to_inum(path, NULL);
+    if (inum < 0) return -ENOENT;
+
     log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
 
-    const char *filename = strrchr(path, '/');
-    filename = filename ? filename + 1 : path;
+    return fstream_write(inum, buf, size, offset);
 
-    int inum, fsize, b_size,
-        b_start = offset / BLOCK_SIZE,
-        b_end = (offset+size) / BLOCK_SIZE + 1;
-
-    inum = path_to_inum(path, NULL);
-    inode_get_attr_upc(inum, NULL, NULL, &fsize);
-    if (inum < 0) return -ENOENT;
-    blknum_t *f = fnode_listing(inum, &b_size);
-
-    char *blkbuf = calloc((b_end-b_start), BLOCK_SIZE), *ptr=blkbuf;
-    for (int i=b_start; i<b_size && i<b_end; i++) {
-      block_read(f[i], ptr);
-      ptr += BLOCK_SIZE;
-    }
-
-    ptr=blkbuf;
-    memcpy((ptr+(offset % BLOCK_SIZE)), buf, size);
-    ptr=blkbuf;
-    for (int i=b_start; i<b_end; i++) {
-      if (i < b_size) {
-        block_write(f[i], ptr);
-      } else {
-        f[i] = free_block_allocate(ptr);
-      }
-      ptr += BLOCK_SIZE;
-    }
-    fsize = fsize > (size+offset) ? fsize: (size+offset);
-    fnode_listing_set(inum, b_end);
-    inode_set_attr_upc(inum, NULL, NULL, &fsize);
-    retstat = size;
-
-    return retstat;
 }
 
 int sfs_truncate(const char* path, off_t offset) {
@@ -301,21 +252,17 @@ int sfs_truncate(const char* path, off_t offset) {
 
     log_msg("\nsfs_truncate(path=\"%s\", offset=%lld)\n",
             path, offset);
-    const char *filename = strrchr(path, '/');
-    filename = filename ? filename + 1 : path;
-    int inum, fsize = offset, b_size,
-        new_b_size = (offset) / BLOCK_SIZE + 1;
 
-    inum = path_to_inum(path, NULL);
+    int inum = path_to_inum(path, NULL),
+        fsize = offset, b_size,
+        new_b_size = (offset) / BLOCK_SIZE + 1;
 
     if (inum < 0) return -ENOENT;
     blknum_t *f = fnode_listing(inum, &b_size);
 
-    char nothing[BLOCK_SIZE];
-    memset(nothing, 0, BLOCK_SIZE);
     for (int i=0; i<new_b_size; i++) {
       if (i >= b_size) {
-        f[i] = free_block_allocate(nothing);
+        f[i] = free_block_allocate(NULL);
       }
     }
     fnode_listing_set(inum, new_b_size);
@@ -385,7 +332,7 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
 
     int inum, p_inum, size;
     inum = path_to_inum(path, &p_inum);
-    if (inum > 0) return -EEXIST;
+    if (inum < 0) return -ENOENT;
     return retstat;
 }
 

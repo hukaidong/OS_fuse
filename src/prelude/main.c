@@ -124,7 +124,7 @@ MU_TEST(test_inode_push_pop_create) {
   inode_init();
   int i = 0;
   while(free_inode_pop()) i++;
-  mu_assert_int_eq(509, i);
+  mu_assert_int_eq(1021, i);
   fnode_init(3, 2);
   dnode_init(4, 2);
   union inode_t node;

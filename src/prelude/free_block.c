@@ -6,7 +6,7 @@
 
 
 union _superblockbuf SuperBlockBuf;
-union _blockbuf BlockBuf;
+union _blockbuf BlockBuf, EmptyBlk;
 
 static int freeblock_read(int block_num) {
   return block_read(block_num, &BlockBuf);
@@ -29,6 +29,7 @@ static void superblock_read() {
 
 void free_block_init() {
   memset(&BlockBuf, 0, sizeof(BlockBuf));
+  memset(&EmptyBlk, 0, sizeof(EmptyBlk));
   memset(&SuperBlockBuf, 0, sizeof(SuperBlockBuf));
 
   SuperBlockBuf.free_block_head = 1;
@@ -69,7 +70,11 @@ int free_block_allocate(const char *buff) {
     SuperBlockBuf.free_block_size--;
     SuperBlockBuf.free_block_head = BlockBuf.free_block_next;
     superblock_write();
-    block_write(block_num, buff);
+    if (buff != NULL) {
+      block_write(block_num, buff);
+    } else {
+      block_write(block_num, &EmptyBlk);
+    }
   } else {
     errno_push(-ENOSPC);
   }

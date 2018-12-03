@@ -2,3 +2,4 @@
 #include "free_block.c"
 #include "inode.c"
 #include "path.c"
+#include "stream.c"

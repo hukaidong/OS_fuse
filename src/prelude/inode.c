@@ -41,13 +41,16 @@ void inode_init() {
 void inode_get_attr(ushort inum, struct stat *statbuf) {
   union inode_t _inodebuf;
   inode_load(inum, &_inodebuf);
+  statbuf->st_blksize = BLOCK_SIZE;
   if (_inodebuf.metadata.isdir == 1) {
     statbuf->st_mode = S_IFDIR | 0755;
     statbuf->st_nlink = _inodebuf.metadata.nlink;
+    statbuf->st_blocks = 0;
     statbuf->st_size = _inodebuf.metadata.size;
   } else {
     statbuf->st_mode = S_IFREG | 0644;
     statbuf->st_nlink = _inodebuf.metadata.nlink;
+    statbuf->st_blocks = _inodebuf.metadata.size;
     statbuf->st_size = _inodebuf.metadata.fsize;
   }
 
@@ -70,9 +73,15 @@ void inode_set_attr_upc(ushort inum, int *st_mode, int *st_nlink, int *st_size) 
   union inode_t _inodebuf;
   inode_load(inum, &_inodebuf);
   if (_inodebuf.metadata.isdir) {
-      if (st_size) _inodebuf.metadata.size = *st_size;
+    if (st_size) {
+      _inodebuf.metadata.size =
+        *st_size > DENTRY_MAX_SIZE ? DENTRY_MAX_SIZE : *st_size;
+    }
   } else {
-      if (st_size) _inodebuf.metadata.fsize = *st_size;
+    if (st_size) {
+      _inodebuf.metadata.fsize =
+        *st_size > FCONTENT_MAX_SIZE ? FCONTENT_MAX_SIZE : *st_size;
+    }
   }
   if (st_nlink) _inodebuf.metadata.nlink = *st_nlink;
   inode_dump(inum, &_inodebuf);
@@ -95,6 +104,7 @@ void dnode_init(ushort inum, ushort pnum) {
 }
 
 void fnode_init(ushort inum, ushort pnum) {
+  if (inum < 0) return;
   union inode_t _inodebuf;
   memset(&_inodebuf, 0, sizeof(union inode_t));
   _inodebuf.metadata.isdir = 0;
@@ -273,7 +283,7 @@ struct di_ent *dnode_listing(ushort inum, int* st_size) {
 void dnode_listing_set(ushort inum, int newsize) {
   if (newsize >= DENTRY_MAX_SIZE) {
     errno_push(-EFBIG);
-    return;
+    newsize = DENTRY_MAX_SIZE - 1;
   }
   union inode_t _inodebuf, p_buf, lv1_buf;
   inode_load(inum, &_inodebuf);
@@ -374,9 +384,9 @@ blknum_t *fnode_listing(ushort inum, int* st_size) {
 }
 
 void fnode_listing_set(ushort inum, int newsize) {
-  if (newsize >= FENTRY_MAX_SIZE) {
+  if (newsize > FENTRY_MAX_SIZE) {
     errno_push(-EFBIG);
-    return;
+    newsize = FENTRY_MAX_SIZE;
   }
   union inode_t _inodebuf, p_buf, lv1_buf;
   inode_load(inum, &_inodebuf);
@@ -469,7 +479,7 @@ ushort free_inode_pop() {
 }
 
 void free_inode_push(ushort inum) {
-  assert(inum > 2 && inum < INODE_BLK_SIZE);
+  if (inum < 2) return;
   union inode_t _inodebuf;
   ushort idx = inum / 8, offset = inum % 8;
   inode_load(1, &_inodebuf);
@@ -482,10 +492,6 @@ void dnode_append(int inum, const struct di_ent new_item) {
   int size;
 
   struct di_ent *d = dnode_listing(inum, &size);
-  if (size >= DENTRY_MAX_SIZE-1) {
-    errno_push(-EFBIG);
-    return;
-  }
   d[size] = new_item;
   dnode_listing_set(inum, size+1);
 
@@ -501,14 +507,15 @@ void dnode_remove(int inum, const char* filename) {
   struct di_ent *d = dnode_listing(inum, &size);
   struct di_ent *d_end = d + size;
   for ( ; d<d_end; d++) {
-    if (!strcmp(d->filename, filename))
+    if (!strcmp(d->filename, filename)) {
       memcpy(d, d_end-1, sizeof(*d));
-  }
-  dnode_listing_set(inum, size-1);
 
-  union inode_t _inodebuf;
-  inode_load(inum, &_inodebuf);
-  _inodebuf.metadata.nlink--;
-  inode_dump(inum, &_inodebuf);
+      dnode_listing_set(inum, size-1);
+      union inode_t _inodebuf;
+      inode_load(inum, &_inodebuf);
+      _inodebuf.metadata.nlink--;
+      inode_dump(inum, &_inodebuf);
+    }
+  }
 }
 

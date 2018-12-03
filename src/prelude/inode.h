@@ -5,11 +5,14 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "block.h"
+
 #define INODE_SIZE 128
-#define INODE_BLK_SIZE 512
+#define INODE_BLK_SIZE 1024
 
 #define DENTRY_MAX_SIZE 2086
 #define FENTRY_MAX_SIZE 8344
+#define FCONTENT_MAX_SIZE (FENTRY_MAX_SIZE * BLOCK_SIZE)
 
 
 typedef uint8_t  uchar;
@@ -17,7 +20,7 @@ typedef uint16_t ushort;
 typedef uint32_t blknum_t;
 typedef uint64_t ullong;
 
-union  metadata    { struct { ushort ino, pno, size, fsize, nlink; uchar isdir;}; char _[16]; };
+union  metadata    { struct { ushort ino, pno, size, nlink; blknum_t fsize; uchar isdir;}; char _[16]; };
 struct di_ent      { char filename[14]; ushort inum; };
 struct di_ent      di_ent_c(const char *filename, ushort inum);
 

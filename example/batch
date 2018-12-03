@@ -1,4 +1,3 @@
 fusermount -u mountdir
 (cd .. ; make AUTOCONF=: AUTOHEADER=: AUTOMAKE=: ACLOCAL=:)
 ../src/sfs ~/tempfsfile mountdir
-(cd mountdir; echo "aaaaa" > a; cat a)

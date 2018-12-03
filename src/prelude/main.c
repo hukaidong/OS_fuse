@@ -94,7 +94,7 @@ MU_TEST(test_inode_init) {
   inode_init();
   union inode_t node;
   inode_load(2, &node);
-  mu_assert_int_eq(1, node.metadata.size);
+  mu_assert_int_eq(2, node.metadata.size);
   mu_assert_int_eq(1, node.metadata.isdir);
   mu_assert_int_eq(2, node.metadata.nlink);
 }
@@ -121,7 +121,7 @@ MU_TEST(test_inode_push_pop_create) {
   int i = 0;
   while(free_inode_pop()) i++;
   mu_assert_int_eq(509, i);
-  fnode_init(3);
+  fnode_init(3, 2);
   dnode_init(4, 2);
   union inode_t node;
   inode_load(3, &node);
@@ -129,7 +129,7 @@ MU_TEST(test_inode_push_pop_create) {
   mu_assert_int_eq(0, node.metadata.isdir);
   mu_assert_int_eq(1, node.metadata.nlink);
   inode_load(4, &node);
-  mu_assert_int_eq(1, node.metadata.size);
+  mu_assert_int_eq(2, node.metadata.size);
   mu_assert_int_eq(1, node.metadata.isdir);
   mu_assert_int_eq(2, node.metadata.nlink);
 }
@@ -145,8 +145,8 @@ MU_TEST(test_dnode_list_adhoc) {
   for (int i=0; i<4096; i++) rndbuf[i] = rand();
   mu_assert_int_eq(3, free_inode_pop());
   dnode_init(3, 2);
-  blk = dnode_listing(3, &sizef, NULL);
-  mu_assert_int_eq(1, sizef);
+  blk = dnode_listing(3, &sizef);
+  mu_assert_int_eq(2, sizef);
 
   // just fill origin inode
   target_sizef = 6;
@@ -156,7 +156,7 @@ MU_TEST(test_dnode_list_adhoc) {
   free_inode_push(4);
   // reading
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 }
@@ -174,7 +174,7 @@ MU_TEST(test_dnode_list_lv1exp) {
 
   mu_assert_int_eq(3, free_inode_pop());
   dnode_init(3, 2);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   memcpy(blk, rndbuf, sizeof(struct di_ent) * target_sizef);
   dnode_listing_set(3, target_sizef);
 
@@ -187,7 +187,7 @@ MU_TEST(test_dnode_list_lv1exp) {
   mu_assert_int_eq(0, memcmp(node._buf, rndbuf+sizeof(struct di_ent)*6, sizeof(struct di_ent)));
 
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
@@ -207,7 +207,7 @@ MU_TEST(test_dnode_list_lv1exp) {
 
   // reading
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
@@ -227,7 +227,7 @@ MU_TEST(test_dnode_list_lv2exp) {
 
   mu_assert_int_eq(3, free_inode_pop());
   dnode_init(3, 2);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   memcpy(blk, rndbuf, sizeof(struct di_ent) * target_sizef);
   dnode_listing_set(3, target_sizef);
 
@@ -236,7 +236,7 @@ MU_TEST(test_dnode_list_lv2exp) {
   free_inode_push(10);
 
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
@@ -247,7 +247,7 @@ MU_TEST(test_dnode_list_lv2exp) {
 
   // reading
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
@@ -258,7 +258,7 @@ MU_TEST(test_dnode_list_lv2exp) {
 
   // reading
   memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-  blk = dnode_listing(3, &sizef, NULL);
+  blk = dnode_listing(3, &sizef);
   mu_assert_int_eq(target_sizef, sizef);
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 }
@@ -278,25 +278,57 @@ MU_TEST(test_dnode_list_scale_and_srink) {
     for (int i=0; i<65536; i++) rndbuf[i] = rand();
 
     target_sizef = 1000;
-    blk = dnode_listing(3, &sizef, NULL);
+    blk = dnode_listing(3, &sizef);
     memcpy(blk, rndbuf, sizeof(struct di_ent) * target_sizef);
     dnode_listing_set(3, target_sizef);
 
     memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-    blk = dnode_listing(3, &sizef, NULL);
+    blk = dnode_listing(3, &sizef);
     mu_assert_int_eq(target_sizef, sizef);
     mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
     target_sizef = 10;
-    blk = dnode_listing(3, &sizef, NULL);
+    blk = dnode_listing(3, &sizef);
     memcpy(blk, rndbuf, sizeof(struct di_ent) * target_sizef);
     dnode_listing_set(3, target_sizef);
 
     memset(blk, 0, sizeof(struct di_ent) * target_sizef);
-    blk = dnode_listing(3, &sizef, NULL);
+    blk = dnode_listing(3, &sizef);
     mu_assert_int_eq(target_sizef, sizef);
     mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
   }
+}
+
+MU_TEST(test_dnode_add_rm) {
+  char rndbuf[65536];
+  for (int i=0; i<14*200; i++) {
+    switch (i%14) {
+      case 0: rndbuf[i] = '_'; break; // First character
+      case 13: rndbuf[i] = 0; break;  // Last character
+      default: rndbuf[i] = rand() % 26 + 'a';
+    }
+  }
+  free_block_init();
+  inode_init();
+  mu_assert_int_eq(3, free_inode_pop());
+  dnode_init(3, 2);
+
+  for (int i=0; i<100; i++) {
+    dnode_append(3, di_ent_c(rndbuf+i*14, i));
+  }
+
+  for (int i=0; i<100; i++) {
+    if (rand() % 4 == 0) {
+      dnode_append(3, di_ent_c(rndbuf+(i+100)*14, i));
+    } else {
+      dnode_remove(3, rndbuf+i*14);
+    }
+  }
+
+  int size;
+  struct di_ent *d = dnode_listing(3, &size);
+  mu_check(size > 2);
+  mu_check(size < 100);
 }
 
 MU_TEST(test_fnode_list_adhoc) {
@@ -309,7 +341,7 @@ MU_TEST(test_fnode_list_adhoc) {
   inode_init();
   for (int i=0; i<4096; i++) rndbuf[i] = rand();
   mu_assert_int_eq(3, free_inode_pop());
-  fnode_init(3);
+  fnode_init(3, 2);
 
   blk = fnode_listing(3, &sizef);
   mu_assert_int_eq(0, sizef);
@@ -339,7 +371,7 @@ MU_TEST(test_fnode_list_lv1exp) {
   target_sizef = 25;
 
   mu_assert_int_eq(3, free_inode_pop());
-  fnode_init(3);
+  fnode_init(3, 2);
   blk = fnode_listing(3, &sizef);
   memcpy(blk, rndbuf, sizeof(blknum_t) * target_sizef);
   fnode_listing_set(3, target_sizef);
@@ -392,7 +424,7 @@ MU_TEST(test_fnode_list_lv2exp) {
   target_sizef = 153;
 
   mu_assert_int_eq(3, free_inode_pop());
-  fnode_init(3);
+  fnode_init(3, 2);
   blk = fnode_listing(3, &sizef);
   memcpy(blk, rndbuf, sizeof(blknum_t) * target_sizef);
   fnode_listing_set(3, target_sizef);
@@ -437,7 +469,7 @@ MU_TEST(test_fnode_list_scale_and_srink) {
   free_block_init();
   inode_init();
   mu_assert_int_eq(3, free_inode_pop());
-  fnode_init(3);
+  fnode_init(3, 2);
 
   for (int repeat=0; repeat<10; repeat++) {
 
@@ -471,7 +503,7 @@ MU_TEST(test_inode_stat) {
   int st_mode, st_nlink, st_size;
   inode_get_attr_upc(2, &st_mode, &st_nlink, &st_size);
   mu_assert_int_eq(2, st_nlink);
-  mu_assert_int_eq(1, st_size);
+  mu_assert_int_eq(2, st_size);
 }
 
 MU_TEST(test_path_2_inum) {
@@ -482,7 +514,7 @@ MU_TEST(test_path_2_inum) {
   mu_assert_int_eq(2, path_to_inum("/", NULL));
   mu_assert_int_eq(-1, path_to_inum("/a", &parent_inum));
   mu_assert_int_eq(2, parent_inum);
-  struct di_ent *d = dnode_listing(2, &size, NULL);
+  struct di_ent *d = dnode_listing(2, &size);
   d[1] = di_ent_c("a", 3);
   d[2] = di_ent_c("b", 4);
   dnode_listing_set(2, 3);
@@ -509,6 +541,7 @@ MU_TEST_SUITE(test_suite) {
   MU_RUN_TEST(test_dnode_list_lv2exp);
   MU_RUN_TEST(test_dnode_list_scale_and_srink);
   MU_RUN_TEST(test_path_2_inum);
+  MU_RUN_TEST(test_dnode_add_rm);
 }
 
 int main(int argc, char *argv[]) {

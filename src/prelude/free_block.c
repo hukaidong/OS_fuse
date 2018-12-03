@@ -57,6 +57,22 @@ int free_block_pop() {
   return block_num;
 }
 
+int free_block_allocate(const char *buff) {
+  superblock_read();
+  int block_num = SuperBlockBuf.free_block_head;
+
+  if (block_num > 0) {
+    freeblock_read(block_num);
+    SuperBlockBuf.free_block_size--;
+    SuperBlockBuf.free_block_head = BlockBuf.free_block_next;
+    superblock_write();
+    block_write(block_num, buff);
+  }
+
+  return block_num;
+
+}
+
 int free_block_push(int block_num) {
   assert(block_num > 512 && block_num < MAX_BLOCK_NUM);
   superblock_read();

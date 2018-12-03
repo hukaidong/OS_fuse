@@ -43,9 +43,9 @@ void inode_get_attr(ushort inum, struct stat *statbuf) {
     statbuf->st_nlink = _inodebuf.metadata.nlink;
     statbuf->st_size = _inodebuf.metadata.size;
   } else {
-    statbuf->st_mode = S_IFREG | 0755;
+    statbuf->st_mode = S_IFREG | 0644;
     statbuf->st_nlink = _inodebuf.metadata.nlink;
-    statbuf->st_size = _inodebuf.metadata.size;
+    statbuf->st_size = _inodebuf.metadata.fsize;
   }
 
 }
@@ -53,38 +53,53 @@ void inode_get_attr(ushort inum, struct stat *statbuf) {
 void inode_get_attr_upc(ushort inum, int *st_mode, int *st_nlink, int *st_size) {
   union inode_t _inodebuf;
   inode_load(inum, &_inodebuf);
-  if (st_mode != NULL) {
-    if (_inodebuf.metadata.isdir) {
-      *st_mode = S_IFDIR | 0755;
-    } else {
-      *st_mode = S_IFREG | 0755;
-    }
+  if (_inodebuf.metadata.isdir) {
+      if (st_mode) *st_mode = S_IFDIR | 0755;
+      if (st_size) *st_size = _inodebuf.metadata.size;
+  } else {
+      if (st_mode) *st_mode = S_IFREG | 0644;
+      if (st_size) *st_size = _inodebuf.metadata.fsize;
   }
   if (st_nlink) *st_nlink = _inodebuf.metadata.nlink;
-  if (st_size) *st_size = _inodebuf.metadata.size;
+}
 
+void inode_set_attr_upc(ushort inum, int *st_mode, int *st_nlink, int *st_size) {
+  union inode_t _inodebuf;
+  inode_load(inum, &_inodebuf);
+  if (_inodebuf.metadata.isdir) {
+      if (st_size) _inodebuf.metadata.size = *st_size;
+  } else {
+      if (st_size) _inodebuf.metadata.fsize = *st_size;
+  }
+  if (st_nlink) _inodebuf.metadata.nlink = *st_nlink;
+  inode_dump(inum, &_inodebuf);
 }
 
 void dnode_init(ushort inum, ushort pnum) {
   union inode_t _inodebuf;
+  struct di_ent dot = { ".", inum };
   struct di_ent dotdot = { "..", pnum };
 
   memset(&_inodebuf, 0, sizeof(union inode_t));
   _inodebuf.metadata.isdir = 1;
   _inodebuf.metadata.nlink = 2;
   _inodebuf.metadata.ino = inum;
-  _inodebuf.metadata.size = 1;
-  _inodebuf.idir.dinum[0] = dotdot;
+  _inodebuf.metadata.pno = pnum;
+  _inodebuf.metadata.size = 2;
+  _inodebuf.idir.dinum[0] = dot;
+  _inodebuf.idir.dinum[1] = dotdot;
   inode_dump(inum, &_inodebuf);
 }
 
-void fnode_init(ushort inum) {
+void fnode_init(ushort inum, ushort pnum) {
   union inode_t _inodebuf;
   memset(&_inodebuf, 0, sizeof(union inode_t));
   _inodebuf.metadata.isdir = 0;
   _inodebuf.metadata.nlink = 1;
   _inodebuf.metadata.ino = inum;
+  _inodebuf.metadata.pno = pnum;
   _inodebuf.metadata.size = 0;
+  _inodebuf.metadata.fsize = 0;
   inode_dump(inum, &_inodebuf);
 }
 
@@ -121,10 +136,8 @@ const struct di_ent dnode_entry_get(ushort inum, int lv0_offset) {
 
     inode_load(_inodebuf.idir.dpnum[lv1_page], &_inodebuf);
     return _inodebuf.pdir.dinum[lv1_offset];
-  } else if (lv0_offset >= 0) {
-    return _inodebuf.idir.dinum[lv0_offset];
   } else {
-    return di_ent_c(".", _inodebuf.metadata.ino);
+    return _inodebuf.idir.dinum[lv0_offset];
   }
 }
 
@@ -225,14 +238,12 @@ int fnode_entry_set(ushort inum, int lv0_offset, blknum_t blknum) {
   return 1;
 }
 
-struct di_ent *dnode_listing(ushort inum, int* st_size, struct di_ent* dot) {
+struct di_ent *dnode_listing(ushort inum, int* st_size) {
   union inode_t _inodebuf, p_buf, lv1_buf;
   inode_load(inum, &_inodebuf);
   int size = _inodebuf.metadata.size;
   struct di_ent *ptr=d, *ptr_end=d+size;
   *st_size = size;
-  if (dot != NULL)
-    *dot = di_ent_c(".", _inodebuf.metadata.ino);
 
   memcpy(ptr, _inodebuf.idir.dinum, sizeof(struct di_ent) * 6);
   ptr += 6;
@@ -457,19 +468,31 @@ void free_inode_push(ushort inum) {
 
 void dnode_append(int inum, const struct di_ent new_item) {
   int size;
-  struct di_ent *d = dnode_listing(inum, &size, NULL);
+
+  struct di_ent *d = dnode_listing(inum, &size);
   d[size] = new_item;
   dnode_listing_set(inum, size+1);
+
+  union inode_t _inodebuf;
+  inode_load(inum, &_inodebuf);
+  _inodebuf.metadata.nlink++;
+  inode_dump(inum, &_inodebuf);
 }
 
 void dnode_remove(int inum, const char* filename) {
   int size;
-  struct di_ent *d = dnode_listing(inum, &size, NULL);
+
+  struct di_ent *d = dnode_listing(inum, &size);
   struct di_ent *d_end = d + size;
   for ( ; d<d_end; d++) {
     if (!strcmp(d->filename, filename))
       memcpy(d, d_end-1, sizeof(*d));
   }
   dnode_listing_set(inum, size-1);
+
+  union inode_t _inodebuf;
+  inode_load(inum, &_inodebuf);
+  _inodebuf.metadata.nlink--;
+  inode_dump(inum, &_inodebuf);
 }
 

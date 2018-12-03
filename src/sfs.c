@@ -90,7 +90,6 @@ int sfs_getattr(const char *path, struct stat *statbuf)
     /* log_fuse_context(fuse_get_context()); */
 
     memset(statbuf, 0, sizeof(struct stat));
-
     inum = path_to_inum(path, NULL);
     if (inum < 0) return -ENOENT;
     inode_get_attr(inum, statbuf);
@@ -124,7 +123,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     inum = path_to_inum(path, &p_inum);
     if (inum > 0) return -EEXIST;
     inum = free_inode_pop();
-    fnode_init(inum);
+    fnode_init(inum, p_inum);
     dnode_append(p_inum, di_ent_c(filename, inum));
     return retstat;
 }
@@ -163,8 +162,6 @@ int sfs_open(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
             path, fi);
-
-
     return retstat;
 }
 
@@ -187,8 +184,6 @@ int sfs_release(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     log_msg("\nsfs_release(path=\"%s\", fi=0x%08x)\n",
           path, fi);
-
-
     return retstat;
 }
 
@@ -209,6 +204,30 @@ int sfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
     log_msg("\nsfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
 
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    int inum, fsize, b_size,
+        b_start = offset / BLOCK_SIZE,
+        b_end = (offset+size) / BLOCK_SIZE + 1;
+
+    inum = path_to_inum(path, NULL);
+    if (inum < 0) return -ENOENT;
+    blknum_t *f = fnode_listing(inum, &b_size);
+    inode_get_attr_upc(inum, NULL, NULL, &fsize);
+
+    char *blkbuf = calloc((b_end-b_start), BLOCK_SIZE), *ptr=blkbuf;
+    for (int i=b_start; i<b_size && i<b_end; i++) {
+      block_read(f[i], ptr);
+      /* log_msg("block_read %d, \"%s\"", f[i], ptr); */
+      ptr += BLOCK_SIZE;
+    }
+    ptr = blkbuf;
+    retstat = (fsize-offset)<size ? fsize-offset : size;
+    retstat = retstat > 0 ? retstat : 0;
+    memcpy(buf, ptr+offset % BLOCK_SIZE, retstat);
+    /* log_msg("readed: (fsize=%d, bsize=%d, retstat=%d, f[0]=%d, blkbuf=\"%s\", buf=\"%s\")\n", */
+        /* fsize, b_size, retstat, f[0], blkbuf, buf); */
 
     return retstat;
 }
@@ -228,6 +247,67 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
 
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    int inum, fsize, b_size,
+        b_start = offset / BLOCK_SIZE,
+        b_end = (offset+size) / BLOCK_SIZE + 1;
+
+    inum = path_to_inum(path, NULL);
+    inode_get_attr_upc(inum, NULL, NULL, &fsize);
+    if (inum < 0) return -ENOENT;
+    blknum_t *f = fnode_listing(inum, &b_size);
+
+    char *blkbuf = calloc((b_end-b_start), BLOCK_SIZE), *ptr=blkbuf;
+    for (int i=b_start; i<b_size && i<b_end; i++) {
+      block_read(f[i], ptr);
+      ptr += BLOCK_SIZE;
+    }
+
+    ptr=blkbuf;
+    memcpy((ptr+(offset % BLOCK_SIZE)), buf, size);
+    ptr=blkbuf;
+    for (int i=b_start; i<b_end; i++) {
+      if (i < b_size) {
+        block_write(f[i], ptr);
+      } else {
+        f[i] = free_block_allocate(ptr);
+      }
+      ptr += BLOCK_SIZE;
+    }
+    fsize = fsize > (size+offset) ? fsize: (size+offset);
+    fnode_listing_set(inum, b_end);
+    inode_set_attr_upc(inum, NULL, NULL, &fsize);
+    retstat = size;
+
+    return retstat;
+}
+
+int sfs_truncate(const char* path, off_t offset) {
+    int retstat = 0;
+
+    log_msg("\nsfs_truncate(path=\"%s\", offset=%lld)\n",
+            path, offset);
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+    int inum, fsize = offset, b_size,
+        new_b_size = (offset) / BLOCK_SIZE + 1;
+
+    inum = path_to_inum(path, NULL);
+
+    if (inum < 0) return -ENOENT;
+    blknum_t *f = fnode_listing(inum, &b_size);
+
+    char nothing[BLOCK_SIZE];
+    memset(nothing, 0, BLOCK_SIZE);
+    for (int i=0; i<new_b_size; i++) {
+      if (i >= b_size) {
+        f[i] = free_block_allocate(nothing);
+      }
+    }
+    fnode_listing_set(inum, new_b_size);
+    inode_set_attr_upc(inum, NULL, NULL, &fsize);
 
     return retstat;
 }
@@ -282,8 +362,6 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
     int retstat = 0;
     /* log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n", */
           /* path, fi); */
-
-
     return retstat;
 }
 
@@ -318,9 +396,7 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 
     inum = path_to_inum(path, NULL);
     if (inum < 0) return -ENOENT;
-    struct di_ent dot;
-    const struct di_ent *d = dnode_listing(inum, &size, &dot);
-    filler(buf, dot.filename, NULL, 0);
+    const struct di_ent *d = dnode_listing(inum, &size);
     for (int i=0; i<size; i++) {
       filler(buf, d[i].filename, NULL, 0);
     }
@@ -335,8 +411,6 @@ int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
 int sfs_releasedir(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
-
-
     return retstat;
 }
 
@@ -351,6 +425,7 @@ struct fuse_operations sfs_oper = {
   .release = sfs_release,
   .read = sfs_read,
   .write = sfs_write,
+  .truncate = sfs_truncate,
 
   .rmdir = sfs_rmdir,
   .mkdir = sfs_mkdir,

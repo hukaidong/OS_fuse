@@ -33,6 +33,7 @@ extern union _blockbuf {
 void free_block_init();
 int free_block_pop();
 int free_block_push(int block_num);
+int free_block_allocate(const char* buf);
 int free_block_size();
 
 #endif /* ifndef FREE_BLOCK_H */

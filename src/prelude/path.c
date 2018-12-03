@@ -17,7 +17,7 @@ int _path_to_inum_elem(const char* path, ushort dest_inum) {
   if (dest_inum < 2) return -1;
   if (!strcmp(path, ".")) return dest_inum;
   int size;
-  const struct di_ent* d = dnode_listing(dest_inum, &size, NULL);
+  const struct di_ent* d = dnode_listing(dest_inum, &size);
   for (int i=0; i<size; i++) {
     if (!strncmp(path, d[i].filename, 14)) return d[i].inum;
   }

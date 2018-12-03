@@ -142,7 +142,7 @@ int sfs_unlink(const char *path)
 
     fnode_listing_set(inum, 0);
     free_inode_push(inum);
-    dnode_remove(inum, filename);
+    dnode_remove(p_inum, filename);
 
     return retstat;
 }

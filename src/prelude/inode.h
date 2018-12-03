@@ -46,6 +46,8 @@ blknum_t *fnode_listing(ushort inum, int* size);
 struct di_ent *dnode_listing(ushort inum, int* size, struct di_ent* dot);
 void fnode_listing_set(ushort inum, int newsize);
 void dnode_listing_set(ushort inum, int newsize);
+void dnode_append(int inum, const struct di_ent new_item);
+void dnode_remove(int inum, const char* filename);
 
 ushort free_inode_pop();
 void free_inode_push(ushort inum);

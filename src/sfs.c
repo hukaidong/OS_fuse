@@ -87,7 +87,7 @@ int sfs_getattr(const char *path, struct stat *statbuf)
 
     log_msg("\nsfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
           path, statbuf);
-    log_fuse_context(fuse_get_context());
+    /* log_fuse_context(fuse_get_context()); */
 
     memset(statbuf, 0, sizeof(struct stat));
 
@@ -125,9 +125,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     if (inum > 0) return -EEXIST;
     inum = free_inode_pop();
     fnode_init(inum);
-    struct di_ent *d = dnode_listing(p_inum, &size, NULL);
-    d[size] = di_ent_c(filename, inum);
-    dnode_listing_set(p_inum, size+1);
+    dnode_append(p_inum, di_ent_c(filename, inum));
     return retstat;
 }
 
@@ -145,14 +143,7 @@ int sfs_unlink(const char *path)
 
     fnode_listing_set(inum, 0);
     free_inode_push(inum);
-
-    struct di_ent *d = dnode_listing(p_inum, &size, NULL);
-    struct di_ent *d_end = d + size;
-    for ( ; d<d_end; d++) {
-      if (!strcmp(d->filename, filename))
-        memcpy(d, d_end-1, sizeof(*d));
-    }
-    dnode_listing_set(p_inum, size-1);
+    dnode_remove(inum, filename);
 
     return retstat;
 }
@@ -249,7 +240,14 @@ int sfs_mkdir(const char *path, mode_t mode)
     log_msg("\nsfs_mkdir(path=\"%s\", mode=0%3o)\n",
             path, mode);
 
-
+    char filename[14];
+    path_basename(path, filename);
+    int inum, pinum;
+    inum = path_to_inum(path, &pinum);
+    if (inum > 0) return -EEXIST;
+    inum = free_inode_pop();
+    dnode_init(inum, pinum);
+    dnode_append(pinum, di_ent_c(filename, inum));
     return retstat;
 }
 
@@ -258,9 +256,15 @@ int sfs_mkdir(const char *path, mode_t mode)
 int sfs_rmdir(const char *path)
 {
     int retstat = 0;
-    log_msg("sfs_rmdir(path=\"%s\")\n",
-            path);
+    log_msg("sfs_rmdir(path=\"%s\")\n", path);
 
+    char filename[14];
+    path_basename(path, filename);
+    int inum, pinum;
+    inum = path_to_inum(path, &pinum);
+    if (inum < 0) return -ENOENT;
+    dnode_listing_set(inum, 0);
+    dnode_remove(pinum, filename);
 
     return retstat;
 }
@@ -276,8 +280,8 @@ int sfs_rmdir(const char *path)
 int sfs_opendir(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
-    log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n",
-          path, fi);
+    /* log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n", */
+          /* path, fi); */
 
 
     return retstat;
@@ -307,20 +311,18 @@ int sfs_opendir(const char *path, struct fuse_file_info *fi)
 int sfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
                struct fuse_file_info *fi)
 {
-    int retstat = 0, size = 0;
+    int retstat = 0, size = 0, inum = 0;
 
     (void) offset;
     (void) fi;
 
-    if (strcmp(path, "/") != 0) {
-      return -ENOENT;
-    } else {
-      struct di_ent dot;
-      const struct di_ent *d = dnode_listing(2, &size, &dot);
-      filler(buf, dot.filename, NULL, 0);
-      for (int i=0; i<size; i++) {
-        filler(buf, d[i].filename, NULL, 0);
-      }
+    inum = path_to_inum(path, NULL);
+    if (inum < 0) return -ENOENT;
+    struct di_ent dot;
+    const struct di_ent *d = dnode_listing(inum, &size, &dot);
+    filler(buf, dot.filename, NULL, 0);
+    for (int i=0; i<size; i++) {
+      filler(buf, d[i].filename, NULL, 0);
     }
 
     return retstat;

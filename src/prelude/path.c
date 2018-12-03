@@ -3,6 +3,16 @@
 
 #include "path.h"
 
+
+void path_basename(const char* path, char* out) {
+    const char *filename = strrchr(path, '/');
+    if (filename) {
+      strcpy(out, filename+1);
+    } else {
+      strcpy(out, path);
+    }
+}
+
 int _path_to_inum_elem(const char* path, ushort dest_inum) {
   if (dest_inum < 2) return -1;
   if (!strcmp(path, ".")) return dest_inum;

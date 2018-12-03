@@ -455,3 +455,21 @@ void free_inode_push(ushort inum) {
 }
 
 
+void dnode_append(int inum, const struct di_ent new_item) {
+  int size;
+  struct di_ent *d = dnode_listing(inum, &size, NULL);
+  d[size] = new_item;
+  dnode_listing_set(inum, size+1);
+}
+
+void dnode_remove(int inum, const char* filename) {
+  int size;
+  struct di_ent *d = dnode_listing(inum, &size, NULL);
+  struct di_ent *d_end = d + size;
+  for ( ; d<d_end; d++) {
+    if (!strcmp(d->filename, filename))
+      memcpy(d, d_end-1, sizeof(*d));
+  }
+  dnode_listing_set(inum, size-1);
+}
+

@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "block.h"
 #include "free_block.h"
+#include "err.h"
 
 
 union _superblockbuf SuperBlockBuf;
@@ -52,6 +53,8 @@ int free_block_pop() {
     SuperBlockBuf.free_block_size--;
     SuperBlockBuf.free_block_head = BlockBuf.free_block_next;
     superblock_write();
+  } else {
+    errno_push(-ENOSPC);
   }
 
   return block_num;
@@ -67,6 +70,8 @@ int free_block_allocate(const char *buff) {
     SuperBlockBuf.free_block_head = BlockBuf.free_block_next;
     superblock_write();
     block_write(block_num, buff);
+  } else {
+    errno_push(-ENOSPC);
   }
 
   return block_num;

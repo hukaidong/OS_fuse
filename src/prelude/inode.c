@@ -2,20 +2,23 @@
 #include <string.h>
 #include <assert.h>
 
+#include "err.h"
 #include "inode.h"
 #include "block.h"
 #include "free_block.h"
 
-union inode_t _iblockbuf[4];
+static union inode_t _iblockbuf[4];
 
-void inode_load(ushort inum, union inode_t *inode) {
+void inode_load(int inum, union inode_t *inode) {
+  if (inum < 0) return;
   int bidx = inum / 4;
   int iidx = inum % 4;
   block_read(bidx, _iblockbuf);
   memcpy(inode, _iblockbuf+iidx, sizeof(union inode_t));
 }
 
-void inode_dump(ushort inum, const union inode_t *inode) {
+void inode_dump(int inum, const union inode_t *inode) {
+  if (inum < 0) return;
   int bidx = inum / 4;
   int iidx = inum % 4;
   block_read(bidx, _iblockbuf);
@@ -103,8 +106,8 @@ void fnode_init(ushort inum, ushort pnum) {
   inode_dump(inum, &_inodebuf);
 }
 
-struct di_ent d[2086];
-blknum_t f[8344];
+static struct di_ent d[DENTRY_MAX_SIZE];
+static blknum_t f[FENTRY_MAX_SIZE];
 
 struct di_ent di_ent_c(const char *filename, ushort inum) {
   struct di_ent di_ent;
@@ -268,6 +271,10 @@ struct di_ent *dnode_listing(ushort inum, int* st_size) {
 }
 
 void dnode_listing_set(ushort inum, int newsize) {
+  if (newsize >= DENTRY_MAX_SIZE) {
+    errno_push(-EFBIG);
+    return;
+  }
   union inode_t _inodebuf, p_buf, lv1_buf;
   inode_load(inum, &_inodebuf);
   int oldsize = _inodebuf.metadata.size;
@@ -367,6 +374,10 @@ blknum_t *fnode_listing(ushort inum, int* st_size) {
 }
 
 void fnode_listing_set(ushort inum, int newsize) {
+  if (newsize >= FENTRY_MAX_SIZE) {
+    errno_push(-EFBIG);
+    return;
+  }
   union inode_t _inodebuf, p_buf, lv1_buf;
   inode_load(inum, &_inodebuf);
   int oldsize = _inodebuf.metadata.size;
@@ -453,6 +464,7 @@ ushort free_inode_pop() {
       }
     }
   }
+  errno_push(-ENOSPC);
   return 0;
 }
 
@@ -470,6 +482,10 @@ void dnode_append(int inum, const struct di_ent new_item) {
   int size;
 
   struct di_ent *d = dnode_listing(inum, &size);
+  if (size >= DENTRY_MAX_SIZE-1) {
+    errno_push(-EFBIG);
+    return;
+  }
   d[size] = new_item;
   dnode_listing_set(inum, size+1);
 

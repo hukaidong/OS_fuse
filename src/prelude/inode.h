@@ -8,6 +8,10 @@
 #define INODE_SIZE 128
 #define INODE_BLK_SIZE 512
 
+#define DENTRY_MAX_SIZE 2086
+#define FENTRY_MAX_SIZE 8344
+
+
 typedef uint8_t  uchar;
 typedef uint16_t ushort;
 typedef uint32_t blknum_t;
@@ -34,8 +38,8 @@ union inode_t {
 };
 
 void inode_init();
-void inode_load(ushort inum, union inode_t *inode);
-void inode_dump(ushort inum, const union inode_t *inode);
+void inode_load(int inum, union inode_t *inode);
+void inode_dump(int inum, const union inode_t *inode);
 void inode_get_attr(ushort inum, struct stat *statbuf);
 void inode_get_attr_upc(ushort, int* mode, int* nlink, int* size);
 void inode_set_attr_upc(ushort, int* mode, int* nlink, int* size);

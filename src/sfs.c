@@ -115,7 +115,7 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     log_msg("\nsfs_create(path=\"%s\", mode=0%03o, fi=0x%08x)\n", path, mode, fi);
 
-    int retstat = 0;
+    int retstat;
     const char *filename = strrchr(path, '/');
     filename = filename ? filename + 1 : path;
 
@@ -125,6 +125,11 @@ int sfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     inum = free_inode_pop();
     fnode_init(inum, p_inum);
     dnode_append(p_inum, di_ent_c(filename, inum));
+    retstat = errno_pop();
+    if (retstat < 0) {     // reverting
+      dnode_remove(p_inum, filename);
+      free_inode_push(inum);
+    }
     return retstat;
 }
 
@@ -159,9 +164,16 @@ int sfs_unlink(const char *path)
  */
 int sfs_open(const char *path, struct fuse_file_info *fi)
 {
+    // JUST MAKE EXISTANCE CHECK
     int retstat = 0;
     log_msg("\nsfs_open(path\"%s\", fi=0x%08x)\n",
             path, fi);
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    int inum, p_inum, size;
+    inum = path_to_inum(path, &p_inum);
+    if (inum > 0) return -EEXIST;
     return retstat;
 }
 
@@ -328,6 +340,11 @@ int sfs_mkdir(const char *path, mode_t mode)
     inum = free_inode_pop();
     dnode_init(inum, pinum);
     dnode_append(pinum, di_ent_c(filename, inum));
+    retstat = errno_pop();
+    if (retstat < 0) {     // reverting
+      dnode_remove(pinum, filename);
+      free_inode_push(inum);
+    }
     return retstat;
 }
 
@@ -359,9 +376,16 @@ int sfs_rmdir(const char *path)
  */
 int sfs_opendir(const char *path, struct fuse_file_info *fi)
 {
+  // JUST DO EXISTANCE CHECK
     int retstat = 0;
     /* log_msg("\nsfs_opendir(path=\"%s\", fi=0x%08x)\n", */
           /* path, fi); */
+    const char *filename = strrchr(path, '/');
+    filename = filename ? filename + 1 : path;
+
+    int inum, p_inum, size;
+    inum = path_to_inum(path, &p_inum);
+    if (inum > 0) return -EEXIST;
     return retstat;
 }
 

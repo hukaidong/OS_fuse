@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "err.h"
 #include "path.h"
 #include "block.h"
 #include "inode.h"
@@ -8,7 +9,9 @@
 #include "minunit.h"
 
 void test_setup(void) { }
-void test_teardown(void) { }
+void test_teardown(void) {
+  errno_pop();
+}
 
 /*
  * WARNING:
@@ -52,6 +55,7 @@ MU_TEST(test_fb_pop_till_empty) {
   free_block_init();
   int count = 0;
   for ( ; free_block_pop()>0; count++);
+  mu_assert_int_eq(-ENOSPC, errno_pop());
   mu_assert_int_eq(MAX_BLOCK_NUM - 1, count);
   mu_assert_int_eq(-1, free_block_pop());
   mu_assert_int_eq(0, free_block_size());
@@ -252,7 +256,7 @@ MU_TEST(test_dnode_list_lv2exp) {
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(struct di_ent)*target_sizef));
 
   // last lv2 expanding node
-  target_sizef = 2086;
+  target_sizef = DENTRY_MAX_SIZE - 1;
   memcpy(blk, rndbuf, sizeof(struct di_ent) * target_sizef);
   dnode_listing_set(3, target_sizef);
 
@@ -450,9 +454,10 @@ MU_TEST(test_fnode_list_lv2exp) {
   mu_assert_int_eq(0, memcmp(blk, rndbuf, sizeof(blknum_t)*target_sizef));
 
   // last lv2 expanding node
-  target_sizef = 8344;
+  target_sizef = DENTRY_MAX_SIZE - 1;
   memcpy(blk, rndbuf, sizeof(blknum_t) * target_sizef);
   fnode_listing_set(3, target_sizef);
+  mu_assert_int_eq(0, errno_pop());
 
   // reading
   memset(blk, 0, sizeof(blknum_t) * target_sizef);

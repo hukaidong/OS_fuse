@@ -549,8 +549,19 @@ MU_TEST(test_stream_io) {
   int inum = free_block_pop();
   fnode_init(inum, 2);
   fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
-  mu_assert_int_eq(-1, free_block_pop());
-  mu_assert_int_eq(-26, errno_pop());
+  mu_assert_int_eq(0, free_block_pop());
+  mu_assert_int_eq(-28, errno_pop());
+
+  memset(buf, 0 ,sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE));
+  fstream_read(3, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
+  mu_assert_int_eq(0, errno_pop());
+  /* mu_assert_int_eq(0, memcmp(buf, buf_dup, sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE))); */
+  fstream_free(3, 0);
+  fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
+  mu_assert_int_eq(0, errno_pop());
+  mu_assert_int_eq(0, free_block_pop());
+  mu_assert_int_eq(-28, errno_pop());
+
 }
 
 MU_TEST_SUITE(test_suite) {

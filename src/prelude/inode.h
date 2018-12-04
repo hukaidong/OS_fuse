@@ -8,7 +8,7 @@
 #include "block.h"
 
 #define INODE_SIZE 128
-#define INODE_BLK_SIZE 1024
+#define INODE_BLK_SIZE 1024  // Maximum 1024 due to bit map constrain
 
 #define DENTRY_MAX_SIZE 2086
 #define FENTRY_MAX_SIZE 8344

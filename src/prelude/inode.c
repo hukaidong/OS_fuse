@@ -30,10 +30,12 @@ void inode_init() {
   union inode_t _inodebuf;
   for (int i=1; i<INODE_BLK_SIZE; i++)
     free_block_pop();
+  free_block_pop(); // bit map block
 
-  memset(&_inodebuf, 0xff, INODE_BLK_SIZE / 8);
-  _inodebuf._buf[0] = 0x01f;       // 0001 1111
-  inode_dump(1, &_inodebuf);
+  union _blockbuf b;
+  memset(&b, 0xff, sizeof(b));
+  b.buf[0] = 0x01f;       // 0001 1111
+  block_write(INODE_BLK_SIZE, &b);
 
   dnode_init(2, 2);
 }
@@ -458,15 +460,16 @@ void fnode_listing_set(ushort inum, int newsize) {
 }
 
 ushort free_inode_pop() {
-  union inode_t _inodebuf;
-  inode_load(1, &_inodebuf);
+  union _blockbuf b;
+
+  block_read(INODE_BLK_SIZE, &b);
   for (int i=0; i<(INODE_BLK_SIZE/8); i++) {
-    if (_inodebuf._buf[i] != 0) {
+    if (b.buf[i] != 0) {
       char ptr = 0x80;
       for (int j=0; j<8; j++) {
-        if (_inodebuf._buf[i] & ptr) {
-          _inodebuf._buf[i] &= (~ptr);
-          inode_dump(1, &_inodebuf);
+        if (b.buf[i] & ptr) {
+          b.buf[i] &= (~ptr);
+          block_write(INODE_BLK_SIZE, &b);
           return 8*i + j;
         } else {
           ptr >>= 1;
@@ -480,11 +483,11 @@ ushort free_inode_pop() {
 
 void free_inode_push(ushort inum) {
   if (inum < 2) return;
-  union inode_t _inodebuf;
+  union _blockbuf b;
   ushort idx = inum / 8, offset = inum % 8;
-  inode_load(1, &_inodebuf);
-  _inodebuf._buf[idx] |= (0x80 >> offset);
-  inode_dump(1, &_inodebuf);
+  block_read(INODE_BLK_SIZE, &b);
+  b.buf[idx] |= (0x80 >> offset);
+  block_write(INODE_BLK_SIZE, &b);
 }
 
 

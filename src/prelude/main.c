@@ -5,6 +5,7 @@
 #include "path.h"
 #include "block.h"
 #include "inode.h"
+#include "stream.h"
 #include "free_block.h"
 #include "minunit.h"
 
@@ -527,6 +528,31 @@ MU_TEST(test_path_2_inum) {
   mu_assert_int_eq(4, path_to_inum("/b", &parent_inum));
 }
 
+MU_TEST(test_stream_io) {
+  free_block_init();
+  inode_init();
+  char *buf = calloc(BLOCK_SIZE, FENTRY_MAX_SIZE);
+  char *buf_dup = calloc(BLOCK_SIZE, FENTRY_MAX_SIZE);
+  mu_check(buf!=0);
+  mu_check(buf_dup!=0);
+  for (int i=0; i<sizeof(buf)/2; i++) {
+    buf[i] = rand();
+  }
+  memcpy(buf_dup, buf, sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE));
+
+  for (int i=0; i< 4; i++) {
+    int inum = free_block_pop();
+    fnode_init(inum, 2);
+    fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
+    mu_assert_int_eq(0, errno_pop());
+  }
+  int inum = free_block_pop();
+  fnode_init(inum, 2);
+  fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
+  mu_assert_int_eq(-1, free_block_pop());
+  mu_assert_int_eq(-26, errno_pop());
+}
+
 MU_TEST_SUITE(test_suite) {
 	MU_SUITE_CONFIGURE(&test_setup, &test_teardown);
   MU_RUN_TEST(test_fb_init);
@@ -547,6 +573,7 @@ MU_TEST_SUITE(test_suite) {
   MU_RUN_TEST(test_dnode_list_scale_and_srink);
   MU_RUN_TEST(test_path_2_inum);
   MU_RUN_TEST(test_dnode_add_rm);
+  MU_RUN_TEST(test_stream_io);
 }
 
 int main(int argc, char *argv[]) {

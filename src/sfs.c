@@ -147,6 +147,7 @@ int sfs_unlink(const char *path)
     inum = path_to_inum(path, &p_inum);
     if (inum < 0) return -ENOENT;
 
+    fstream_free(inum, 0);
     fnode_listing_set(inum, 0);
     free_inode_push(inum);
     dnode_remove(p_inum, filename);
@@ -243,7 +244,19 @@ int sfs_write(const char *path, const char *buf, size_t size, off_t offset,
     log_msg("\nsfs_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
 
-    return fstream_write(inum, buf, size, offset);
+    retstat = fstream_write(inum, buf, size, offset);
+    if (retstat < 0) {
+      int i, e;
+      i = free_inode_pop();
+      e = errno_pop();
+      log_msg("Testing pop result..., inode_pop=%d, errno=%d \n", i, e);
+
+      i = free_block_pop();
+      e = errno_pop();
+      log_msg("Testing pop result..., block_pop=%d, errno=%d \n", i, e);
+
+    }
+    return retstat;
 
 }
 
@@ -260,11 +273,10 @@ int sfs_truncate(const char* path, off_t offset) {
     if (inum < 0) return -ENOENT;
     blknum_t *f = fnode_listing(inum, &b_size);
 
-    for (int i=0; i<new_b_size; i++) {
-      if (i >= b_size) {
-        f[i] = free_block_allocate(NULL);
-      }
+    for (int i=b_size; i<new_b_size; i++) {
+      f[i] = free_block_allocate(NULL);
     }
+    fstream_free(inum, new_b_size);
     fnode_listing_set(inum, new_b_size);
     inode_set_attr_upc(inum, NULL, NULL, &fsize);
 

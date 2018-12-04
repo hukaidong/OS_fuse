@@ -60,3 +60,12 @@ int fstream_write(int inum, const char *buf, int size, int offset) {
     int retstat = errno_pop();
     return retstat < 0? retstat : size;
 }
+
+void fstream_free(int inum, int new_b_size) {
+  int b_size;
+  blknum_t *f = fnode_listing(inum, &b_size);
+  for (int i=new_b_size; i<b_size; i++) {
+    free_block_push(f[i]);
+  }
+  fnode_listing_set(inum, new_b_size);
+}

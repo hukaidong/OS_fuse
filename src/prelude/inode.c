@@ -124,6 +124,7 @@ static blknum_t f[FENTRY_MAX_SIZE];
 struct di_ent di_ent_c(const char *filename, ushort inum) {
   struct di_ent di_ent;
   memcpy(&di_ent, filename, 14);
+  di_ent.filename[13] = 0;
   di_ent.inum = inum;
   return di_ent;
 }
@@ -510,7 +511,7 @@ void dnode_remove(int inum, const char* filename) {
   struct di_ent *d = dnode_listing(inum, &size);
   struct di_ent *d_end = d + size;
   for ( ; d<d_end; d++) {
-    if (!strcmp(d->filename, filename)) {
+    if (!strncmp(d->filename, filename, 13)) {
       memcpy(d, d_end-1, sizeof(*d));
 
       dnode_listing_set(inum, size-1);

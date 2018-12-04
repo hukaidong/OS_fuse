@@ -539,17 +539,32 @@ MU_TEST(test_stream_io) {
     buf[i] = rand();
   }
   memcpy(buf_dup, buf, sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE));
+  blknum_t *blknum;
+  int size;
 
-  for (int i=0; i< 4; i++) {
+  for (int i=0; i< 3; i++) {
     int inum = free_block_pop();
     fnode_init(inum, 2);
     fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
     mu_assert_int_eq(0, errno_pop());
+    blknum = fnode_listing(inum, &size);
+    for (int j=0; j<size; j++)
+      if( blknum[j] <= INODE_BLK_SIZE ) {
+        printf("\nblknum assign error on file %d, have num %d", inum, blknum[j]);
+        mu_fail("blknum test failed");
+      }
   }
   int inum = free_block_pop();
   fnode_init(inum, 2);
   fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
-  mu_assert_int_eq(0, free_block_pop());
+
+  blknum = fnode_listing(inum, &size);
+  for (int j=0; j<size; j++)
+    if( blknum[j] <= INODE_BLK_SIZE ) {
+      printf("\nblknum assign error on file %d, have num %d", inum, blknum[j]);
+      mu_fail("blknum test failed");
+    }
+  mu_assert_int_eq(-1, free_block_pop());
   mu_assert_int_eq(-28, errno_pop());
 
   memset(buf, 0 ,sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE));
@@ -557,7 +572,15 @@ MU_TEST(test_stream_io) {
   mu_assert_int_eq(0, errno_pop());
   /* mu_assert_int_eq(0, memcmp(buf, buf_dup, sizeof(BLOCK_SIZE*FENTRY_MAX_SIZE))); */
   fstream_free(3, 0);
+  inum = free_block_pop();
+  /* mu_assert_int_eq(-1, free_block_pop()); */
   fstream_write(inum, buf, BLOCK_SIZE * FENTRY_MAX_SIZE, 0);
+  blknum = fnode_listing(inum, &size);
+  for (int j=0; j<size; j++)
+    if( blknum[j] <= INODE_BLK_SIZE ) {
+      printf("\nblknum assign error on file %d, have num %d", inum, blknum[j]);
+      mu_fail("blknum test failed");
+    }
   mu_assert_int_eq(0, errno_pop());
   mu_assert_int_eq(0, free_block_pop());
   mu_assert_int_eq(-28, errno_pop());
